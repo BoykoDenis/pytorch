@@ -51,7 +51,7 @@ for idx in np.arange(20):
 	ax = fig.add_subplot(2, 10, idx+1)
 	#plt.imshow(im_convert(images[idx]))
 	ax.set_title(labels[idx].item())
-	#test comment
+	#test comment 
 
 
 
@@ -62,12 +62,17 @@ class LeNet(nn.Module):
 		self.conv2 = nn.Conv2d(20, 50, 5, 1)
 		# input chanell, output chanek, kernel size, step size
 		self.fc1 = nn.Linear(4*4*50, 500)
-		self.fc2 = nn.Linear(500, 10 )
+		self.fc2 = nn.Linear(500, 10)
 	def forward(self, x):
-		x = F.relu(self.linear1(x))
-		x = F.relu(self.linear2(x))
-		x = self.linear3(x) # no act func (crossentropyloss)
+		x = F.relu(self.conv1(x)):
+		x = F.max_pool2d(x, 2, 2)
+		x = F.relu(self.conv2(x)):
+		x = F.max_pool2d(x, 2, 2)
+		x = x,view(-1, 4*4*50)
+		x = F.relu(self.fc1(x))
+		x = self.fc2(x)
 		return x
+
 
 
 model = Classifier(784, 125, 65, 10)
