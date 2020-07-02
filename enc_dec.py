@@ -5,6 +5,8 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+import sys
 #import pickle
 from PIL import Image
 
@@ -13,7 +15,7 @@ epochs = 10
 flag = True
 load_m = False
 channels_noise = 1800
-batch_size = 10
+batch_size = 2
 mod_save_path = 'models\\model_alpha_1.pth.tar'
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -113,7 +115,7 @@ class Enc_Dec(nn.Module):
 		x = F.relu(self.conv1_r(x))
 
 		#print('Pooling... done', end = '\r')
-		
+		'''
 		if flag:
 
 			indices = {'ind1': ind1, 'ind2': ind2, 'ind3': ind3, 'ind4': ind4, 'ind5': ind5, 'ind6': ind6, 'ind7': ind7}
@@ -122,13 +124,13 @@ class Enc_Dec(nn.Module):
 			#pickle.dump(indices, file)
 			#file.close()
 			flag = False
-		
+		'''
 		return x
 
 
 
 training_path = 'D:\\Datasets\\Mountain_railroads\\train\\'
-training_dataset = [Image.open(training_path + 'mr_' + str(i) + '.jpg') for i in range(1, 64)]
+training_dataset_raw = [Image.open(training_path + 'mr_' + str(i) + '.jpg') for i in range(1, 64)]
 
 transform_train = transforms.Compose([transforms.Resize((1080, 1920)),
 									  transforms.ToTensor(),
@@ -136,11 +138,18 @@ transform_train = transforms.Compose([transforms.Resize((1080, 1920)),
 														   (0.5, 0.5, 0.5)),
 									  ])
 
-for idx, img in enumerate(training_dataset):
-	training_dataset[idx] = transform_train(img)
+for idx, img in enumerate(training_dataset_raw):
+	training_dataset_raw[idx] = transform_train(img)
 
+training_dataset = torch.stack(training_dataset_raw)  
+print(type(training_dataset))
+training_dataset = torch.utils.data.TensorDataset(training_dataset, training_dataset)
+training_loader = torch.utils.data.DataLoader(training_dataset, batch_size = batch_size, shuffle = True)
+#torch.reshape(training_dataset, (-1, batch_size))
+print(training_dataset)
+torch.cuda.empty_cache()
 
-
+#sys.exit()
 criterion = nn.BCEWithLogitsLoss()
 model = Enc_Dec(3, 5).to(device)
 parameters = model.parameters()
@@ -150,23 +159,25 @@ if load_m:
 	load_mod(torch.load('models\\model_alpha_1.pth.tar'))
 
 for epoch in range(epochs):
-
+	torch.cuda.empty_cache()
 	checkpoint = {'state_dictionary' : model.state_dict(), 'optimizer': optimizer.state_dict()}
 	if epoch % 10 == 0:
 		save_mod(checkpoint)
-	for idx, data in enumerate(training_dataset):
-		print('epoch: ', epoch, 'dataset progress: ', idx, end = '\r')
+	for idx, [data, label] in enumerate(training_loader):
+		torch.cuda.empty_cache()
+		print('epoch: ', epoch, 'dataset progress: ', idx, '   ', end = '\r')
 
-		data = data.unsqueeze(0).to(device)
+		data = data.to(device)
+		label = label.to(device)
 		model.zero_grad()
 		output = model(data).to(device)
-		loss = criterion(output, data)
+		loss = criterion(output, label)
 
 		loss.backward()
 		optimizer.step()
 		model.zero_grad()
 
-output = model(training_dataset[10].unsqueeze(0).to(device))
+output = model(training_dataset_raw[10].unsqueeze(0).to(device))
 plt.imshow(im_convert(output.detach()))
 plt.show()
 
