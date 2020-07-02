@@ -5,14 +5,19 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import numpy as np
+#import pickle
 from PIL import Image
 
-lr = 0.0001
-epochs = 1
+lr = 0.001
+epochs = 10
+flag = True
 load_m = False
-mod_save_path = 'models\\model.pth.tar'
+channels_noise = 1800
+batch_size = 10
+mod_save_path = 'models\\model_alpha_1.pth.tar'
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+fixed_noise = torch.randn(1, channels_noise, 1, 1).to(device)
 
 def im_convert(tensor):
 	image = tensor.cpu().clone().detach().numpy()
@@ -67,15 +72,15 @@ class Enc_Dec(nn.Module):
 
 
 	def forward(self, x):
+		global flag
 		
-		print('Pooling... start', end = '\r')
 		
 		x = F.relu(self.conv1(x))
 		x, ind1 = self.pool1(x)
 		x = F.relu(self.conv2(x))
 		x, ind2 = self.pool2(x)
 
-		print('Pooling... in proggres', end = '\r')
+		
 
 		x = F.relu(self.conv3(x))
 		x, ind3 = self.pool3(x)
@@ -87,11 +92,11 @@ class Enc_Dec(nn.Module):
 		x, ind6 = self.pool6(x)
 		x, ind7 = self.pool7(x)
 
-		print(x.shape)
-		plt.imshow(x[0, 0].cpu().detach().numpy())
-		plt.show()
-		print('Pooling... done', end = '\r')
-		print('UnPooling... start', end = '\r')
+		#print('ind00000000000000000000000000000000000000000', ind1)
+		#plt.imshow(x[0, 0].cpu().detach().numpy())
+		#plt.show()
+		#print('Pooling... done', end = '\r')
+		#print('UnPooling... start', end = '\r')
 		x = self.unpool7(x, ind7)
 		x = self.unpool6(x, ind6)
 		x = self.unpool5(x, ind5)
@@ -101,14 +106,23 @@ class Enc_Dec(nn.Module):
 		x = F.relu(self.conv4_r(x))
 		x = self.unpool3(x, ind3)
 		x = F.relu(self.conv3_r(x))
-		print('UnPooling... in proggres', end = '\r')
+		
 		x = self.unpool2(x, ind2)
 		x = F.relu(self.conv2_r(x))
 		x = self.unpool1(x, ind1)
 		x = F.relu(self.conv1_r(x))
 
-		print('Pooling... done', end = '\r')
+		#print('Pooling... done', end = '\r')
+		
+		if flag:
 
+			indices = {'ind1': ind1, 'ind2': ind2, 'ind3': ind3, 'ind4': ind4, 'ind5': ind5, 'ind6': ind6, 'ind7': ind7}
+			torch.save(indices, 'models\\indices')
+			#file = open('models\\indices.txt', 'wb')
+			#pickle.dump(indices, file)
+			#file.close()
+			flag = False
+		
 		return x
 
 
@@ -133,7 +147,7 @@ parameters = model.parameters()
 optimizer = optim.Adam(parameters, lr = lr)
 
 if load_m:
-	load_mod(torch.load('models\\model.pth.tar'))
+	load_mod(torch.load('models\\model_alpha_1.pth.tar'))
 
 for epoch in range(epochs):
 
@@ -152,7 +166,7 @@ for epoch in range(epochs):
 		optimizer.step()
 		model.zero_grad()
 
-output = model(training_dataset[0].unsqueeze(0).to(device))
+output = model(training_dataset[10].unsqueeze(0).to(device))
 plt.imshow(im_convert(output.detach()))
 plt.show()
 
